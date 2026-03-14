@@ -249,7 +249,7 @@
 				<key>MARKETING_VERSION</key>
 				<string>1.0</string>
 				<key>PRODUCT_BUNDLE_IDENTIFIER</key>
-				<string>cn.demonk.test</string>
+				<string>com.demonk.test.visioncamera</string>
 				<key>PRODUCT_NAME</key>
 				<string>$(TARGET_NAME)</string>
 				<key>SWIFT_EMIT_LOC_STRINGS</key>
@@ -302,7 +302,7 @@
 				<key>MARKETING_VERSION</key>
 				<string>1.0</string>
 				<key>PRODUCT_BUNDLE_IDENTIFIER</key>
-				<string>cn.demonk.test</string>
+				<string>com.demonk.test.visioncamera</string>
 				<key>PRODUCT_NAME</key>
 				<string>$(TARGET_NAME)</string>
 				<key>SWIFT_EMIT_LOC_STRINGS</key>
