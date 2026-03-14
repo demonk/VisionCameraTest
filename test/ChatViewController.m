@@ -16,6 +16,7 @@
 @property (nonatomic, strong) NSMutableArray *messages;
 @property (nonatomic, strong) NSArray *randomResponses;
 @property (nonatomic, strong) UIView *gradientBackgroundView;
+@property (nonatomic, strong) NSLayoutConstraint *bottomContainerBottomOffset;
 
 @end
 
@@ -53,6 +54,12 @@
     [self setupBottomSection];
     [self setupChatScrollView];
 
+    // Set initial content inset for scroll view
+    UIEdgeInsets contentInset = self.chatScrollView.contentInset;
+    contentInset.bottom = 60; // bottom container height
+    self.chatScrollView.contentInset = contentInset;
+    self.chatScrollView.scrollIndicatorInsets = contentInset;
+
     // Add initial messages
     [self addMessage:@"Hi there! Welcome to the chat! 👋" isUser:NO];
     [self addMessage:@"Hello! Nice to meet you!" isUser:YES];
@@ -68,9 +75,6 @@
 
     // Update gradient frame
     self.gradientBackgroundView.frame = self.view.bounds;
-
-    // Update scroll view and layout messages
-    [self layoutChatMessages];
 }
 
 #pragma mark - Setup Methods
@@ -124,7 +128,7 @@
         [self.chatScrollView.topAnchor constraintEqualToAnchor:self.backButton.bottomAnchor constant:10],
         [self.chatScrollView.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor],
         [self.chatScrollView.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor],
-        [self.chatScrollView.bottomAnchor constraintEqualToAnchor:self.bottomContainerView.topAnchor],
+        [self.chatScrollView.bottomAnchor constraintEqualToAnchor:self.view.bottomAnchor],
 
         [self.chatContainerView.topAnchor constraintEqualToAnchor:self.chatScrollView.topAnchor],
         [self.chatContainerView.leadingAnchor constraintEqualToAnchor:self.chatScrollView.leadingAnchor],
@@ -139,6 +143,12 @@
     self.bottomContainerView.translatesAutoresizingMaskIntoConstraints = NO;
     self.bottomContainerView.backgroundColor = [UIColor whiteColor];
     [self.view addSubview:self.bottomContainerView];
+
+    self.bottomContainerBottomOffset = [self.bottomContainerView.bottomAnchor constraintEqualToAnchor:self.view.bottomAnchor];
+    self.bottomContainerBottomOffset.active = YES;
+
+    NSLayoutConstraint *bottomContainerHeight = [self.bottomContainerView.heightAnchor constraintEqualToConstant:60];
+    bottomContainerHeight.active = YES;
 
     // Input text view
     self.messageInputView = [[UITextView alloc] init];
@@ -181,9 +191,7 @@
 
     [NSLayoutConstraint activateConstraints:@[
         [self.bottomContainerView.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor],
-        [self.bottomContainerView.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor],
-        [self.bottomContainerView.bottomAnchor constraintEqualToAnchor:self.view.bottomAnchor],
-        [self.bottomContainerView.heightAnchor constraintGreaterThanOrEqualToConstant:60]
+        [self.bottomContainerView.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor]
     ]];
 }
 
@@ -313,11 +321,15 @@
     NSTimeInterval duration = [info[UIKeyboardAnimationDurationUserInfoKey] doubleValue];
     CGFloat keyboardHeight = [info[UIKeyboardFrameEndUserInfoKey] CGRectValue].size.height;
 
-    // Adjust scroll view content inset to account for keyboard
-    UIEdgeInsets contentInset = self.chatScrollView.contentInset;
-    contentInset.bottom = keyboardHeight;
+    // Move bottom container up with keyboard
+    self.bottomContainerBottomOffset.constant = -keyboardHeight;
 
     [UIView animateWithDuration:duration animations:^{
+        [self.view layoutIfNeeded];
+
+        // Adjust scroll view content inset to match keyboard position
+        UIEdgeInsets contentInset = self.chatScrollView.contentInset;
+        contentInset.bottom = keyboardHeight + 60; // keyboard height + bottom container height
         self.chatScrollView.contentInset = contentInset;
         self.chatScrollView.scrollIndicatorInsets = contentInset;
     }];
@@ -332,9 +344,17 @@
     NSDictionary *info = notification.userInfo;
     NSTimeInterval duration = [info[UIKeyboardAnimationDurationUserInfoKey] doubleValue];
 
+    // Move bottom container back down
+    self.bottomContainerBottomOffset.constant = 0;
+
     [UIView animateWithDuration:duration animations:^{
-        self.chatScrollView.contentInset = UIEdgeInsetsZero;
-        self.chatScrollView.scrollIndicatorInsets = UIEdgeInsetsZero;
+        [self.view layoutIfNeeded];
+
+        // Restore scroll view content inset
+        UIEdgeInsets contentInset = self.chatScrollView.contentInset;
+        contentInset.bottom = 60; // bottom container height
+        self.chatScrollView.contentInset = contentInset;
+        self.chatScrollView.scrollIndicatorInsets = contentInset;
     }];
 }
 
