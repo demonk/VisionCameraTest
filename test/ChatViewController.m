@@ -15,6 +15,8 @@
 @property (nonatomic, strong) UITextView *messageInputView;
 @property (nonatomic, strong) NSMutableArray *messages;
 @property (nonatomic, strong) NSArray *randomResponses;
+@property (nonatomic, strong) UIView *gradientBackgroundView;
+@property (nonatomic, assign) BOOL keyboardIsShowing;
 
 @end
 
@@ -47,18 +49,26 @@
         @"I'm curious to know more about this."
     ];
 
+    [self setupGradientBackground];
     [self setupBackButton];
-    [self setupChatScrollView];
     [self setupBottomSection];
+    [self setupChatScrollView];
 
     // Add initial messages
     [self addMessage:@"Hi there! Welcome to the chat! 👋" isUser:NO];
     [self addMessage:@"Hello! Nice to meet you!" isUser:YES];
     [self addMessage:@"What brings you here today?" isUser:NO];
+
+    // Register for keyboard notifications
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(keyboardWillShow:) name:UIKeyboardWillShowNotification object:nil];
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(keyboardWillHide:) name:UIKeyboardWillHideNotification object:nil];
 }
 
 - (void)viewDidLayoutSubviews {
     [super viewDidLayoutSubviews];
+
+    // Update gradient frame
+    self.gradientBackgroundView.frame = self.view.bounds;
 
     // Update scroll view and layout messages
     [self layoutChatMessages];
@@ -79,6 +89,24 @@
         [self.backButton.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor constant:16],
         [self.backButton.heightAnchor constraintEqualToConstant:30]
     ]];
+}
+
+- (void)setupGradientBackground {
+    self.gradientBackgroundView = [[UIView alloc] initWithFrame:self.view.bounds];
+
+    // Create gradient layer with soft pink/mauve colors
+    CAGradientLayer *gradientLayer = [CAGradientLayer layer];
+    gradientLayer.frame = self.view.bounds;
+    gradientLayer.colors = @[
+        (__bridge id)[UIColor colorWithRed:0.92 green:0.82 blue:0.86 alpha:1.0].CGColor,
+        (__bridge id)[UIColor colorWithRed:0.76 green:0.66 blue:0.72 alpha:1.0].CGColor
+    ];
+    gradientLayer.locations = @[@0.0, @1.0];
+    gradientLayer.startPoint = CGPointMake(0.0, 0.0);
+    gradientLayer.endPoint = CGPointMake(1.0, 1.0);
+
+    [self.gradientBackgroundView.layer addSublayer:gradientLayer];
+    [self.view insertSubview:self.gradientBackgroundView atIndex:0];
 }
 
 - (void)setupChatScrollView {
@@ -276,6 +304,48 @@
     }
 }
 
+#pragma mark - Keyboard Handling
+
+- (void)keyboardWillShow:(NSNotification *)notification {
+    self.keyboardIsShowing = YES;
+
+    NSDictionary *info = notification.userInfo;
+    NSTimeInterval duration = [info[UIKeyboardAnimationDurationUserInfoKey] doubleValue];
+    CGFloat keyboardHeight = [info[UIKeyboardFrameEndUserInfoKey] CGRectValue].size.height;
+
+    [UIView animateWithDuration:duration animations:^{
+        UIEdgeInsets contentInset = UIEdgeInsetsMake(0, 0, keyboardHeight, 0);
+        self.chatScrollView.contentInset = contentInset;
+        self.chatScrollView.scrollIndicatorInsets = contentInset;
+    }];
+
+    // Scroll to bottom after keyboard shows
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(duration * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        [self scrollToBottom];
+    });
+}
+
+- (void)keyboardWillHide:(NSNotification *)notification {
+    self.keyboardIsShowing = NO;
+
+    NSDictionary *info = notification.userInfo;
+    NSTimeInterval duration = [info[UIKeyboardAnimationDurationUserInfoKey] doubleValue];
+
+    [UIView animateWithDuration:duration animations:^{
+        self.chatScrollView.contentInset = UIEdgeInsetsZero;
+        self.chatScrollView.scrollIndicatorInsets = UIEdgeInsetsZero;
+    }];
+}
+
+- (void)scrollToBottom {
+    CGFloat contentHeight = self.chatContainerView.frame.size.height;
+    CGFloat visibleHeight = self.chatScrollView.frame.size.height;
+    if (contentHeight > visibleHeight) {
+        CGPoint offset = CGPointMake(0, contentHeight - visibleHeight);
+        [self.chatScrollView setContentOffset:offset animated:YES];
+    }
+}
+
 #pragma mark - UIScrollViewDelegate
 
 - (void)scrollViewDidScroll:(UIScrollView *)scrollView {
@@ -286,6 +356,10 @@
 
 - (void)backButtonTapped {
     [self dismissViewControllerAnimated:YES completion:nil];
+}
+
+- (void)dealloc {
+    [[NSNotificationCenter defaultCenter] removeObserver:self];
 }
 
 @end
