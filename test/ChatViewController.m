@@ -51,8 +51,8 @@
 
     [self setupGradientBackground];
     [self setupBackButton];
-    [self setupBottomSection];
     [self setupChatScrollView];
+    [self setupBottomSection];
 
     // Set initial content inset for scroll view
     UIEdgeInsets contentInset = self.chatScrollView.contentInset;
@@ -143,6 +143,7 @@
     self.bottomContainerView.translatesAutoresizingMaskIntoConstraints = NO;
     self.bottomContainerView.backgroundColor = [UIColor whiteColor];
     [self.view addSubview:self.bottomContainerView];
+    [self.view bringSubviewToFront:self.bottomContainerView];
 
     self.bottomContainerBottomOffset = [self.bottomContainerView.bottomAnchor constraintEqualToAnchor:self.view.bottomAnchor];
     self.bottomContainerBottomOffset.active = YES;
