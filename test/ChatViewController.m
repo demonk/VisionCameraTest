@@ -17,6 +17,7 @@
 @property (nonatomic, strong) NSArray *randomResponses;
 @property (nonatomic, strong) UIView *gradientBackgroundView;
 @property (nonatomic, strong) NSLayoutConstraint *bottomContainerBottomOffset;
+@property (nonatomic, strong) NSLayoutConstraint *chatContainerViewHeightConstraint;
 
 @end
 
@@ -130,11 +131,11 @@
         [self.chatScrollView.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor],
         [self.chatScrollView.bottomAnchor constraintEqualToAnchor:self.view.bottomAnchor],
 
-        [self.chatContainerView.topAnchor constraintEqualToAnchor:self.chatScrollView.topAnchor],
-        [self.chatContainerView.leadingAnchor constraintEqualToAnchor:self.chatScrollView.leadingAnchor],
-        [self.chatContainerView.trailingAnchor constraintEqualToAnchor:self.chatScrollView.trailingAnchor],
-        [self.chatContainerView.bottomAnchor constraintEqualToAnchor:self.chatScrollView.bottomAnchor],
-        [self.chatContainerView.widthAnchor constraintEqualToAnchor:self.chatScrollView.widthAnchor]
+        [self.chatContainerView.topAnchor constraintEqualToAnchor:self.chatScrollView.contentLayoutGuide.topAnchor],
+        [self.chatContainerView.leadingAnchor constraintEqualToAnchor:self.chatScrollView.contentLayoutGuide.leadingAnchor],
+        [self.chatContainerView.trailingAnchor constraintEqualToAnchor:self.chatScrollView.contentLayoutGuide.trailingAnchor],
+        [self.chatContainerView.bottomAnchor constraintEqualToAnchor:self.chatScrollView.contentLayoutGuide.bottomAnchor],
+        [self.chatContainerView.widthAnchor constraintEqualToAnchor:self.chatScrollView.frameLayoutGuide.widthAnchor]
     ]];
 }
 
@@ -206,7 +207,7 @@
 
     CGFloat margin = 16;
     CGFloat bubblePadding = 12;
-    CGFloat maxWidth = self.view.frame.size.width * 0.7;
+    CGFloat maxWidth = self.chatScrollView.frame.size.width * 0.7;
     CGFloat currentY = margin;
 
     for (NSDictionary *message in self.messages) {
@@ -245,7 +246,7 @@
         [bubbleView addSubview:label];
 
         // Position bubble
-        CGFloat x = isUser ? self.view.frame.size.width - bubbleWidth - margin : margin;
+        CGFloat x = isUser ? self.chatScrollView.frame.size.width - bubbleWidth - margin : margin;
         bubbleView.frame = CGRectMake(x, currentY, bubbleWidth, bubbleHeight);
 
         [self.chatContainerView addSubview:bubbleView];
@@ -253,10 +254,16 @@
         currentY += bubbleHeight + 8;
     }
 
-    self.chatContainerView.frame = CGRectMake(0, 0, self.view.frame.size.width, currentY);
+    // Update container view height constraint
+    if (self.chatContainerViewHeightConstraint) {
+        self.chatContainerViewHeightConstraint.constant = currentY;
+    } else {
+        self.chatContainerViewHeightConstraint = [self.chatContainerView.heightAnchor constraintEqualToConstant:currentY];
+        self.chatContainerViewHeightConstraint.active = YES;
+    }
 
     // Scroll to bottom
-    CGFloat contentHeight = self.chatContainerView.frame.size.height;
+    CGFloat contentHeight = currentY;
     CGFloat visibleHeight = self.chatScrollView.frame.size.height;
     if (contentHeight > visibleHeight) {
         CGPoint offset = CGPointMake(0, contentHeight - visibleHeight);
