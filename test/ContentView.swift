@@ -40,9 +40,9 @@ struct ContentView: View {
             }
             .sheet(isPresented: $showImagePicker) {
                 ImagePicker(sourceType: sourceType, selectedImage: $originalImage)
-            }
-            .onChange(of: originalImage) { _, newImage in
-                if newImage != nil { processImage() }
+                    .onDisappear {
+                        if originalImage != nil { processImage() }
+                    }
             }
         }
     }
