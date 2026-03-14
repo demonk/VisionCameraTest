@@ -16,7 +16,6 @@
 @property (nonatomic, strong) NSMutableArray *messages;
 @property (nonatomic, strong) NSArray *randomResponses;
 @property (nonatomic, strong) UIView *gradientBackgroundView;
-@property (nonatomic, strong) NSLayoutConstraint *bottomContainerBottomConstraint;
 
 @end
 
@@ -180,13 +179,10 @@
         [self.sendButton.widthAnchor constraintEqualToConstant:70]
     ]];
 
-    // Store bottom constraint for keyboard handling
-    self.bottomContainerBottomConstraint = [self.bottomContainerView.bottomAnchor constraintEqualToAnchor:self.view.bottomAnchor];
-    self.bottomContainerBottomConstraint.active = YES;
-
     [NSLayoutConstraint activateConstraints:@[
         [self.bottomContainerView.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor],
         [self.bottomContainerView.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor],
+        [self.bottomContainerView.bottomAnchor constraintEqualToAnchor:self.view.bottomAnchor],
         [self.bottomContainerView.heightAnchor constraintGreaterThanOrEqualToConstant:60]
     ]];
 }
@@ -317,9 +313,13 @@
     NSTimeInterval duration = [info[UIKeyboardAnimationDurationUserInfoKey] doubleValue];
     CGFloat keyboardHeight = [info[UIKeyboardFrameEndUserInfoKey] CGRectValue].size.height;
 
+    // Adjust scroll view content inset to account for keyboard
+    UIEdgeInsets contentInset = self.chatScrollView.contentInset;
+    contentInset.bottom = keyboardHeight;
+
     [UIView animateWithDuration:duration animations:^{
-        self.bottomContainerBottomConstraint.constant = -keyboardHeight;
-        [self.view layoutIfNeeded];
+        self.chatScrollView.contentInset = contentInset;
+        self.chatScrollView.scrollIndicatorInsets = contentInset;
     }];
 
     // Scroll to bottom after keyboard shows
@@ -333,8 +333,8 @@
     NSTimeInterval duration = [info[UIKeyboardAnimationDurationUserInfoKey] doubleValue];
 
     [UIView animateWithDuration:duration animations:^{
-        self.bottomContainerBottomConstraint.constant = 0;
-        [self.view layoutIfNeeded];
+        self.chatScrollView.contentInset = UIEdgeInsetsZero;
+        self.chatScrollView.scrollIndicatorInsets = UIEdgeInsetsZero;
     }];
 }
 
