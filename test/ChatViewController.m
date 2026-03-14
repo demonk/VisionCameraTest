@@ -16,7 +16,7 @@
 @property (nonatomic, strong) NSMutableArray *messages;
 @property (nonatomic, strong) NSArray *randomResponses;
 @property (nonatomic, strong) UIView *gradientBackgroundView;
-@property (nonatomic, assign) BOOL keyboardIsShowing;
+@property (nonatomic, strong) NSLayoutConstraint *bottomContainerBottomConstraint;
 
 @end
 
@@ -145,6 +145,8 @@
     self.messageInputView = [[UITextView alloc] init];
     self.messageInputView.translatesAutoresizingMaskIntoConstraints = NO;
     self.messageInputView.font = [UIFont systemFontOfSize:16];
+    self.messageInputView.backgroundColor = [UIColor whiteColor];
+    self.messageInputView.textColor = [UIColor darkTextColor];
     self.messageInputView.layer.borderColor = [UIColor lightGrayColor].CGColor;
     self.messageInputView.layer.borderWidth = 1.0;
     self.messageInputView.layer.cornerRadius = 20;
@@ -178,10 +180,13 @@
         [self.sendButton.widthAnchor constraintEqualToConstant:70]
     ]];
 
+    // Store bottom constraint for keyboard handling
+    self.bottomContainerBottomConstraint = [self.bottomContainerView.bottomAnchor constraintEqualToAnchor:self.view.bottomAnchor];
+    self.bottomContainerBottomConstraint.active = YES;
+
     [NSLayoutConstraint activateConstraints:@[
         [self.bottomContainerView.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor],
         [self.bottomContainerView.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor],
-        [self.bottomContainerView.bottomAnchor constraintEqualToAnchor:self.view.bottomAnchor],
         [self.bottomContainerView.heightAnchor constraintGreaterThanOrEqualToConstant:60]
     ]];
 }
@@ -269,6 +274,7 @@
 
     // Add user message
     [self addMessage:messageText isUser:YES];
+    [self scrollToBottom];
 
     // Clear input
     self.messageInputView.text = @"";
@@ -307,16 +313,13 @@
 #pragma mark - Keyboard Handling
 
 - (void)keyboardWillShow:(NSNotification *)notification {
-    self.keyboardIsShowing = YES;
-
     NSDictionary *info = notification.userInfo;
     NSTimeInterval duration = [info[UIKeyboardAnimationDurationUserInfoKey] doubleValue];
     CGFloat keyboardHeight = [info[UIKeyboardFrameEndUserInfoKey] CGRectValue].size.height;
 
     [UIView animateWithDuration:duration animations:^{
-        UIEdgeInsets contentInset = UIEdgeInsetsMake(0, 0, keyboardHeight, 0);
-        self.chatScrollView.contentInset = contentInset;
-        self.chatScrollView.scrollIndicatorInsets = contentInset;
+        self.bottomContainerBottomConstraint.constant = -keyboardHeight;
+        [self.view layoutIfNeeded];
     }];
 
     // Scroll to bottom after keyboard shows
@@ -326,14 +329,12 @@
 }
 
 - (void)keyboardWillHide:(NSNotification *)notification {
-    self.keyboardIsShowing = NO;
-
     NSDictionary *info = notification.userInfo;
     NSTimeInterval duration = [info[UIKeyboardAnimationDurationUserInfoKey] doubleValue];
 
     [UIView animateWithDuration:duration animations:^{
-        self.chatScrollView.contentInset = UIEdgeInsetsZero;
-        self.chatScrollView.scrollIndicatorInsets = UIEdgeInsetsZero;
+        self.bottomContainerBottomConstraint.constant = 0;
+        [self.view layoutIfNeeded];
     }];
 }
 
