@@ -6,6 +6,8 @@
 	<string>需要访问摄像头来拍照</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>需要访问相册来选择照片</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>需要访问相册来保存裁剪后的图片</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

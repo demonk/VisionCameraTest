@@ -6,7 +6,7 @@
 //
 
 #import "SceneDelegate.h"
-#import "test-Swift.h"
+#import "ViewController.h"
 
 @interface SceneDelegate ()
 
@@ -20,10 +20,8 @@
         UIWindowScene *windowScene = (UIWindowScene *)scene;
         self.window = [[UIWindow alloc] initWithWindowScene:windowScene];
 
-        // Create SwiftUI ContentView using the wrapper
-        UIViewController *rootViewController = [ContentViewWrapper createHostingController];
-
-        self.window.rootViewController = rootViewController;
+        // Use ViewController as root
+        self.window.rootViewController = [[ViewController alloc] init];
         [self.window makeKeyAndVisible];
     }
 }
@@ -45,7 +43,7 @@
 
 - (void)sceneWillResignActive:(UIScene *)scene {
     // Called when the scene will move from an active state to an inactive state.
-    // This may occur due to temporary interruptions (ex. an incoming phone call).
+    // This may occur due to tempor ary interruptions (ex. an incoming phone call).
 }
 
 

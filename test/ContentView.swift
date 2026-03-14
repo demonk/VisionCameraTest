@@ -7,11 +7,12 @@
 
 import SwiftUI
 import UIKit
+import Photos
 
 @objc public class ContentViewWrapper: NSObject {
     @MainActor
-    @objc public static func createHostingController() -> UIViewController {
-        return UIHostingController(rootView: ContentView())
+    @objc public static func createHostingController(onDismiss: (() -> Void)?) -> UIViewController {
+        return UIHostingController(rootView: ContentView(onDismiss: onDismiss))
     }
 }
 
@@ -19,32 +20,65 @@ struct ContentView: View {
     @State private var originalImage: UIImage?
     @State private var segmentedImage: UIImage?
     @State private var detectedObjects: [DetectedObject] = []
+    @State private var selectedObject: DetectedObject?
     @State private var isProcessing = false
     @State private var errorMessage: String?
-    @State private var showImagePicker = false
-    @State private var sourceType: UIImagePickerController.SourceType = .camera
-    @State private var showSourceSelection = false
+    @State private var showCameraPicker = false
+    @State private var showPhotoLibraryPicker = false
+    @State private var showSaveConfirmation = false
+
+    let onDismiss: (() -> Void)?
 
     var body: some View {
-        NavigationView {
+        VStack(spacing: 0) {
+            // Top toolbar
+            toolbarView
+
+            // Main content
             VStack(spacing: 20) {
                 contentView
                 Spacer()
                 actionButton
             }
-            .navigationTitle("Vision Camera")
-            .confirmationDialog("Choose Source", isPresented: $showSourceSelection) {
-                Button("Camera") { sourceType = .camera; showImagePicker = true }
-                Button("Photo Library") { sourceType = .photoLibrary; showImagePicker = true }
-                Button("Cancel", role: .cancel) { }
+            .padding(.top)
+        }
+        .sheet(isPresented: $showCameraPicker) {
+            ImagePicker(sourceType: .camera, selectedImage: $originalImage)
+        }
+        .sheet(isPresented: $showPhotoLibraryPicker) {
+            ImagePicker(sourceType: .photoLibrary, selectedImage: $originalImage)
+        }
+        .onChange(of: originalImage) { _ in
+            processImage()
+        }
+    }
+
+    private var toolbarView: some View {
+        HStack {
+            Button(action: { onDismiss?() }) {
+                HStack {
+                    Image(systemName: "xmark.circle.fill")
+                    Text("Close")
+                }
+                .font(.system(size: 16))
             }
-            .sheet(isPresented: $showImagePicker) {
-                ImagePicker(sourceType: sourceType, selectedImage: $originalImage)
-                    .onDisappear {
-                        if originalImage != nil { processImage() }
+            .foregroundColor(.red)
+
+            Spacer()
+
+            if segmentedImage != nil {
+                Button(action: { saveToPhotoLibrary() }) {
+                    HStack {
+                        Image(systemName: "square.and.arrow.down")
+                        Text("Save")
                     }
+                    .font(.system(size: 16))
+                }
+                .foregroundColor(.blue)
             }
         }
+        .padding()
+        .background(Color(.systemGray6))
     }
 
     @ViewBuilder
@@ -80,10 +114,14 @@ struct ContentView: View {
     private var detectedObjectsList: some View {
         if !detectedObjects.isEmpty {
             VStack(alignment: .leading, spacing: 8) {
-                Text("Detected Objects").font(.headline).padding(.horizontal)
+                Text("Detected Objects (Top 10)").font(.headline).padding(.horizontal)
                 ForEach(detectedObjects) { object in
-                    ObjectRow(object: object) {
-                        Task { @MainActor in selectObject(object) }
+                    ObjectRow(object: object, isSelected: selectedObject?.id == object.id) {
+                        Task {
+                            await MainActor.run {
+                                self.selectObject(object)
+                            }
+                        }
                     }
                 }
             }
@@ -117,7 +155,18 @@ struct ContentView: View {
     }
 
     private var actionButton: some View {
-        Button(action: { showSourceSelection = true }) {
+        Menu {
+            Button(action: {
+                showCameraPicker = true
+            }) {
+                Label("Camera", systemImage: "camera")
+            }
+            Button(action: {
+                showPhotoLibraryPicker = true
+            }) {
+                Label("Photo Library", systemImage: "photo.on.rectangle")
+            }
+        } label: {
             HStack {
                 Image(systemName: "camera.fill")
                 Text(originalImage == nil ? "Take Photo" : "New Photo")
@@ -140,13 +189,16 @@ struct ContentView: View {
         errorMessage = nil
         detectedObjects = []
         segmentedImage = nil
+        selectedObject = nil
         let processor = VisionProcessor()
         Task {
             do {
-                let objects = try await processor.detectObjects(in: image)
-                self.detectedObjects = objects
+                var objects = try await processor.detectObjects(in: image)
+                // Sort by confidence and take top 10
+                objects.sort { $0.confidence > $1.confidence }
+                self.detectedObjects = Array(objects.prefix(10))
                 self.isProcessing = false
-                if let firstObject = objects.first { selectObject(firstObject) }
+                if let firstObject = detectedObjects.first { selectObject(firstObject) }
             } catch {
                 self.errorMessage = "Detection failed: \(error.localizedDescription)"
                 self.isProcessing = false
@@ -157,7 +209,10 @@ struct ContentView: View {
     @MainActor
     private func selectObject(_ object: DetectedObject) {
         guard let image = originalImage else { return }
+        selectedObject = object
         isProcessing = true
+        errorMessage = nil
+        segmentedImage = nil
         let processor = VisionProcessor()
         Task {
             do {
@@ -167,6 +222,28 @@ struct ContentView: View {
             } catch {
                 self.errorMessage = "Segmentation failed: \(error.localizedDescription)"
                 self.isProcessing = false
+            }
+        }
+    }
+
+    private func saveToPhotoLibrary() {
+        guard let image = segmentedImage else { return }
+
+        PHPhotoLibrary.requestAuthorization { status in
+            if status == .authorized || status == .limited {
+                PHPhotoLibrary.shared().performChanges({
+                    PHAssetChangeRequest.creationRequestForAsset(from: image)
+                }) { success, error in
+                    DispatchQueue.main.async {
+                        if success {
+                            showSaveConfirmation = true
+                        } else {
+                            errorMessage = "Save failed: \(error?.localizedDescription ?? "Unknown error")"
+                        }
+                    }
+                }
+            } else {
+                errorMessage = "Photo library access denied"
             }
         }
     }
@@ -191,6 +268,7 @@ struct ImageSection: View {
 
 struct ObjectRow: View {
     let object: DetectedObject
+    let isSelected: Bool
     let action: @Sendable () -> Void
 
     var body: some View {
@@ -203,10 +281,14 @@ struct ObjectRow: View {
                         .foregroundColor(.secondary)
                 }
                 Spacer()
-                Image(systemName: "chevron.right").foregroundColor(.gray)
+                if isSelected {
+                    Image(systemName: "checkmark.circle.fill").foregroundColor(.blue)
+                } else {
+                    Image(systemName: "chevron.right").foregroundColor(.gray)
+                }
             }
             .padding()
-            .background(Color(.systemGray6))
+            .background(isSelected ? Color.blue.opacity(0.1) : Color(.systemGray6))
             .cornerRadius(8)
             .padding(.horizontal)
         }
@@ -216,6 +298,6 @@ struct ObjectRow: View {
 
 struct ContentView_Previews: PreviewProvider {
     static var previews: some View {
-        ContentView()
+        ContentView(onDismiss: nil)
     }
 }
