@@ -70,6 +70,16 @@
     visionButton.layer.cornerRadius = 12;
     [visionButton addTarget:self action:@selector(openVisionCamera) forControlEvents:UIControlEventTouchUpInside];
     [self.view addSubview:visionButton];
+
+    // Add Test Alert button
+    UIButton *testAlertButton = [UIButton buttonWithType:UIButtonTypeSystem];
+    [testAlertButton setTitle:@"Test Alert" forState:UIControlStateNormal];
+    testAlertButton.frame = CGRectMake(buttonX, CGRectGetMaxY(visionButton.frame) + spacing, buttonWidth, buttonHeight);
+    testAlertButton.backgroundColor = [UIColor systemGreenColor];
+    [testAlertButton setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal];
+    testAlertButton.layer.cornerRadius = 12;
+    [testAlertButton addTarget:self action:@selector(showTestAlert) forControlEvents:UIControlEventTouchUpInside];
+    [self.view addSubview:testAlertButton];
 }
 
 - (void)openCamera {
@@ -116,6 +126,14 @@
     VisionCameraViewController *visionVC = [[VisionCameraViewController alloc] init];
     visionVC.modalPresentationStyle = UIModalPresentationFullScreen;
     [self presentViewController:visionVC animated:YES completion:nil];
+}
+
+- (void)showTestAlert {
+    UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Test Alert"
+                                                                   message:@"Button clicked successfully!"
+                                                            preferredStyle:UIAlertControllerStyleAlert];
+    [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
+    [self presentViewController:alert animated:YES completion:nil];
 }
 
 @end
